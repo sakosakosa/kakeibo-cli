@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 //summar
@@ -31,7 +32,8 @@ public class Main {
 		} else if ("summary".equals(command)) {
 			handleSummary(args);
 		} else {
-			System.out.println("[ERROR]Unknown command:" + command);
+			System.out.println("[ERROR] Unknown command:" + command);
+			printUsage();
 		}
 
 	}
@@ -43,21 +45,38 @@ public class Main {
 		System.out.println("  add yyyy-mm-dd category amount memo");
 		System.out.println(" 支出の追加");
 		System.out.println("  list");
+		System.out.println(" 支出の月次集計");
+		System.out.println("  summary yyyy-mm");
 	}
 
 	//addコマンドの詳細
 	static void handleAdd(String[] args) {
 		if (args.length < 5) {
-			System.out.println("[ERROR] add command requires 4 arguments");
+			System.out.println("[ERROR] add yyyy-mm-dd 種別 メモ の形式で入力してください。");
 			printUsage();
 			return;
 		}
 
-		LocalDate date = LocalDate.parse(args[1]);
+		LocalDate date;
+		try {
+			date = LocalDate.parse(args[1]);
+		} catch(DateTimeParseException e) {
+			System.out.println("[ERROR] 日付は yyyy-mm-ddの形式で入力してください");
+			return;
+		}
+		
 		String category = args[2];
-		int amount = Integer.parseInt(args[3]);
+		
+		int amount;
+		try {
+			amount = Integer.parseInt(args[3]);
+		} catch(NumberFormatException e) {
+			System.out.println("[ERROR] 金額は数字で入力してください");
+			return;
+		}
+		
 		String memo = args[4];
-
+		
 		String line = date + "," + category + "," + amount + "," + memo;
 
 		try (FileWriter fw = new FileWriter(FILE_NAME, true);
@@ -115,7 +134,7 @@ public class Main {
 	//summaryコマンドの詳細
 	static void handleSummary(String[] args) {
 		if (args.length < 2) {
-			System.out.println("[ERROR] summary command requires yyyy-mm");
+			System.out.println("[ERROR] summary yyyy-mmの形式で入力してください。");
 			return;
 		}
 		
