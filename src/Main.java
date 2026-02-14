@@ -9,7 +9,9 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Main {
 
@@ -34,6 +36,8 @@ public class Main {
 			handleSummary(args);
 		} else if ("delete".equals(command)) {
 			handleDelete(args);
+		} else if ("edit".equals(command)) {
+			handleEdit(args);
 		} else {
 			System.out.println("[ERROR] Unknown command:" + command);
 			printUsage();
@@ -46,12 +50,14 @@ public class Main {
 		System.out.println("使い方:");
 		System.out.println(" 支出の追加");
 		System.out.println("  add yyyy-mm-dd category amount memo");
-		System.out.println(" 支出の追加");
+		System.out.println(" 支出の一覧表示");
 		System.out.println("  list");
 		System.out.println(" 支出の月次集計");
 		System.out.println("  summary yyyy-mm");
 		System.out.println(" 支出の削除");
 		System.out.println("  delete id");
+		System.out.println(" 支出の編集");
+		System.out.println("  edit id yyyy-mm-dd category amount memo");
 	}
 
 	//addコマンドの詳細
@@ -131,21 +137,44 @@ public class Main {
 			return;
 		}
 
-		String targetYm = args[1]; //例:2026-01
+		String targetYm = args[1]; 
 		List<Expense> expenses = loadExpenses();
 
+		Map<String, Integer> categoryTotals = new HashMap<>();
 		int total = 0;
 
 		for (Expense e : expenses) {
 			String ym = e.getDate().getYear() + "-" +
 					String.format("%02d", e.getDate().getMonthValue());
 
-			if (ym.equals(targetYm)) {
-				total += e.getAmount();
+			if (!ym.equals(targetYm)) {
+				continue;
 			}
+			
+			String category = e.getCategory();
+			int amount = e.getAmount();
+			
+			categoryTotals.put(
+					category,
+					categoryTotals.getOrDefault(category, 0) + amount
+					);
+			
+			total += amount;
 		}
+		
+		if (categoryTotals.isEmpty()) {
+			System.out.println(targetYm + " の支出はありません");
+			return;
+		}
+		
+		System.out.println(targetYm);
+		for (Map.Entry<String, Integer> entry : categoryTotals.entrySet()) {
+			System.out.println(" " + entry.getKey() + ": " + entry.getValue() + "円");
+		}
+		
+		System.out.println("--------------------------");
+		System.out.println(" total: " + total + "円");
 
-		System.out.println(targetYm + "合計: " + total + "円");
 	}
 
 	//deleteコマンドの詳細
@@ -169,29 +198,49 @@ public class Main {
 		}
 
 		List<Expense> expenses = loadExpenses();
-		
+
 		boolean deleted = expenses.removeIf(e -> e.getId() == targetId);
-		
+
 		if (!deleted) {
 			System.out.println("指定されたIDは見つかりませんでした:" + targetId);
 			return;
 		}
-		
+
 		saveExpenses(expenses);
 		System.out.println("ID " + targetId + " を削除しました");
 
 	}
 
+	//editコマンドの詳細
 	static void handleEdit(String[] args) {
 		if (args.length < 6) {
-			System.out.println("[ERROR] edit id date category amount memo の形式で入力してください");
+			System.out.println("[ERROR] edit id yyyy-mm-dd category amount memo の形式で入力してください");
 			return;
 		}
 
-		int targetId = Integer.parseInt(args[1]);
-		LocalDate newDate = LocalDate.parse(args[2]);
+		int targetId;
+		try {
+			targetId = Integer.parseInt(args[1]);
+		} catch (NumberFormatException e) {
+			System.out.println("[ERROR] idは数字で指定してください");
+			return;
+		}
+		LocalDate newDate;
+		try {
+			newDate = LocalDate.parse(args[2]);
+		} catch (DateTimeParseException e) {
+			System.out.println("[ERROR] 日付は yyyy-mm-ddの形式で入力してください");
+			return;
+		}
 		String newCategory = args[3];
-		int newAmount = Integer.parseInt(args[4]);
+		int newAmount;
+		try {
+			newAmount = Integer.parseInt(args[4]);
+		} catch (NumberFormatException e) {
+			System.out.println("[ERROR] 金額は数字で入力してください");
+			return;
+		}
+
 		String newMemo = args[5];
 
 		List<Expense> expenses = loadExpenses();
@@ -215,7 +264,7 @@ public class Main {
 		}
 
 		saveExpenses(expenses);
-		System.out.println("ID" + targetId + " を編集しました");
+		System.out.println("ID " + targetId + " を編集しました");
 
 	}
 
